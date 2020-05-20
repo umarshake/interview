@@ -46,13 +46,16 @@ router.get('/generate/voucher',function(req,res){
 		res.json({error:'missing parameters'});
 		return;
 	}
-	model.generateVoucher(email,pin,code,amount);
+	model.generateVoucher(email,pin,code,amount,function(msg){
+
+		res.json(msg);
+	});
 });
 
 router.post('/redeem/voucher',function(req,res){
 
 
-if (! validateRequest(req.body)) {
+	if (! validateRequest(req.body)) {
 		res.json({error:'missing parameters'});
 		return;
 	}
@@ -73,6 +76,15 @@ if (! validateRequest(req.body)) {
 		res.json(err.message);
 	}
 
+});
+
+
+router.get('/voucher/filter',function(req,res){
+
+	model.filterVoucher(req.query,function(result){
+
+			res.json(result);
+	});
 });
 
 

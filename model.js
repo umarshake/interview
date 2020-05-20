@@ -1,4 +1,5 @@
 let mysql = require('mysql');
+let crypto = require('crypto');
 let emailService = require('./email.service');
 
 var con = mysql.createConnection({
@@ -16,9 +17,38 @@ con.connect(function(err) {
 
 let model = {
 
+
+	encryptPin : function(text){
+
+
+		var mykey = crypto.createCipher('aes-128-cbc', 'mypassword');
+		var mystr = mykey.update(text, 'utf8', 'hex')
+		mystr += mykey.final('hex');
+
+
+		return mystr;
+
+	},
+
+	decryptPin :  function(encryptPin){
+
+		var mykey = crypto.createDecipher('aes-128-cbc', 'mypassword');
+		var mystr = mykey.update(encryptPin, 'hex', 'utf8')
+		mystr += mykey.final('utf8');
+
+
+		return mystr;
+
+	},
+
 	generateVoucher: function(email,pin,code,amount,returnCallback){
 
-		var sql = `INSERT INTO vouchers (email, code,pin,amount) VALUES ('${email}', '${code}' , '${pin}' , '${amount}')`;
+		let encryptPin = this.encryptPin(pin);
+		// console.log(this.decryptPin(encryptPin));
+
+
+		var sql = `INSERT INTO vouchers (email, code,pin,amount) VALUES ('${email}', '${code}' , '${encryptPin}' , '${amount}')`;
+	  	
 	  	con.query(sql, function (err, result) {
 	    	if (err) throw err;
 
@@ -62,6 +92,9 @@ let model = {
 	redeemVoucher : function(body,returnCallback){
 
 		let {email,code,pin,amount} = body;
+		pin = this.encryptPin(pin);
+
+
 		var sql = `select * from vouchers where email = '${email}' and code = '${code}' and pin = '${pin}' limit 1`;
 		
 		con.query(sql,function(err,result,fields){
@@ -147,6 +180,75 @@ let model = {
 			});
 		});
 	
+	},
+
+
+	createFilterString : function(query){
+		let sql = 'select * from vouchers ';
+		
+		where = ''
+		let flag = false;
+
+		if(typeof query.email !== 'undefined'){
+
+				where += `email = '${query.email}' `;
+				flag = true;
+		}
+
+		if(typeof query.status !== 'undefined'){
+			if(flag)
+				where += ` AND status = '${query.status}' `;
+
+			else{
+				where += ` status = '${query.status}' `;
+				flag=true
+			}
+				
+		}
+
+		if(typeof query.generation_start_time !== 'undefined' && typeof query.generation_end_time !== 'undefined'){
+			if(flag)
+				where += ` AND created_at between '${query.generation_start_time}' AND '${query.generation_end_time}' `;
+
+			else{
+				where += ` created_at between  '${query.generation_start_time}' AND '${query.generation_end_time}' `;
+				flag=true;
+			}
+		}
+
+		if(typeof query.code !== undefined){
+
+			if(flag)
+				where += ` AND code = '${query.code}' `;
+
+			else{
+				where += ` code = '${query.code}' `;
+				flag=true
+			}
+
+		}
+
+
+		if(flag){
+			return (sql = sql + 'WHERE ' + where);  
+		}
+		
+
+		return sql;
+
+
+	},
+	filterVoucher : function(query,returnCallback){
+
+		let sql ='';
+		sql = this.createFilterString(query);
+		con.query(sql,function(err,result){
+
+			returnCallback(result);
+
+		});
+
+
 	}
 }
 
