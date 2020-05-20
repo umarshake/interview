@@ -18,12 +18,7 @@ var app = express();
 
 
 // routes
-app.post('/login/',function(req,res){
-
-
-
-});
-app.use('/user',routes);
+app.use('/api',routes);
 
 
 app.listen(4000,function(req,res){
